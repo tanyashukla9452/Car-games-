@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>3D Card Game</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: Arial, sans-serif;
+      color: white;
+      background: radial-gradient(circle, #176b46, #063321);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden;
+    }
+
+    .game {
+      width: 100%;
+      max-width: 900px;
+      padding: 20px;
+      text-align: center;
+    }
+
+    h1 {
+      margin-bottom: 8px;
+      color: #ffe082;
+    }
+
+    .scoreboard {
+      display: flex;
+      justify-content: center;
+      gap: 30px;
+      margin: 20px 0;
+      font-size: 18px;
+    }
+
+    .table {
+      position: relative;
+      min-height: 360px;
+      border: 3px solid #c5a35b;
+      border-radius: 24px;
+      background: rgba(0, 30, 15, 0.35);
+      padding: 20px;
+    }
+
+    .label {
+      font-size: 16px;
+      margin: 10px;
+      color: #e0f2df;
+    }
+
+    .cards {
+      min-height: 115px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      perspective: 800px;
+    }
+
+    .card {
+      width: 72px;
+      height: 100px;
+      background: #fffdf4;
+      color: #202020;
+      border-radius: 9px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 7px;
+      box-shadow: 0 5px 10px #001a10;
+      cursor: pointer;
+      user-select: none;
+      transform-style: preserve-3d;
+      transition: transform 0.35s, box-shadow 0.25s;
+      font-size: 25px;
+    }
+
+    .card:hover {
+      transform: translateY(-8px) rotateY(8deg);
+      box-shadow: 0 12px 18px #001a10;
+    }
+
+    .card.red {
+      color: #d52232;
+    }
+
+    .card .corner {
+      font-size: 17px;
+      text-align: left;
+      line-height: 1;
+    }
+
+    .card .symbol {
+      font-size: 32px;
+    }
+
+    .card.back {
+      color: white;
+      background: repeating-linear-gradient(
+        45deg,
+        #173b91,
+        #173b91 5px,
+        #284fc0 5px,
+        #284fc0 10px
+      );
+      border: 3px solid white;
+      justify-content: center;
+      font-size: 32px;
+    }
+
+    .center-area {
+      margin: 15px 0;
+    }
+
+    .center-card {
+      width: 75px;
+      height: 105px;
+      margin: 0 auto;
+    }
+
+    .controls {
+      display: flex;
+      justify-content: center;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 22px;
+    }
+
+    button {
+      padding: 12px 22px;
+      border: none;
+      border-radius: 8px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      background: #ffca58;
+      color: #263018;
+      transition: 0.2s;
+    }
+
+    button:hover {
+      background: #ffe29b;
+      transform: translateY(-2px);
+    }
+
+    button:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    #message {
+      min-height: 25px;
+      margin-top: 18px;
+      color: #fff2b0;
+    }
+
+    #three-container {
+      position: fixed;
+      inset: 0;
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    @media (max-width: 500px) {
+      .game {
+        padding: 10px;
+      }
+
+      .table {
+        padding: 10px;
+        min-height: 330px;
+      }
+
+      .card {
+        width: 58px;
+        height: 82px;
+        font-size: 21px;
+      }
+
+      .card .corner {
+        font-size: 14px;
+      }
+
+      .card .symbol {
+        font-size: 25px;
+      }
+
+      .scoreboard {
+        gap: 15px;
+        font-size: 15px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div id="three-container"></div>
+
+  <main class="game">
+    <h1>♠ 3D Card Battle ♥</h1>
+    <p>Draw a card and try to beat the computer!</p>
+
+    <div class="scoreboard">
+      <div>Player: <strong id="player-score">0</strong></div>
+      <div>Computer: <strong id="computer-score">0</strong></div>
+      <div>Round: <strong id="round">0</strong>/10</div>
+    </div>
+
+    <section class="table">
+      <div class="label">COMPUTER</div>
+      <div id="computer-cards" class="cards"></div>
+
+      <div class="center-area">
+        <div class="label">DRAW A CARD</div>
+        <div id="center-card" class="card back center-card">?</div>
+      </div>
+
+      <div class="label">YOUR CARD</div>
+      <div id="player-cards" class="cards"></div>
+    </section>
+
+    <div class="controls">
+      <button id="draw-btn">Draw Cards</button>
+      <button id="reset-btn">New Game</button>
+    </div>
+
+    <div id="message">Click Draw Cards to begin!</div>
+  </main>
+
+  <script type="module">
+    import * as THREE from
+      "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js";
+
+    // Three.js background scene
+    const container = document.getElementById("three-container");
+
+    const scene = new THREE.Scene();
+
+    const camera = new THREE.PerspectiveCamera(
+      60,
+      window.innerWidth / window.innerHeight,
+      0.1,
+      100
+    );
+
+    camera.position.z = 8;
+
+    const renderer = new THREE.WebGLRenderer({
+      alpha: true,
+      antialias: true
+    });
+
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(
+      Math.min(window.devicePixelRatio, 2)
+    );
+
+    container.appendChild(renderer.domElement);
+
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
+    scene.add(ambientLight);
+
+    const particles = [];
+    const geometry = new THREE.BoxGeometry(0.12, 0.12, 0.04);
+
+    for (let i = 0; i < 45; i++) {
+      const material = new THREE.MeshStandardMaterial({
+        color: i % 2 === 0 ? 0xffd166 : 0xffffff,
+        transparent: true,
+        opacity: 0.55
+      });
+
+      const particle = new THREE.Mesh(geometry, material);
+
+      particle.position.set(
+        (Math.random() - 0.5) * 14,
+        (Math.random() - 0.5) * 10,
+        -2 - Math.random() * 5
+      );
+
+      particle.rotation.z = Math.random() * Math.PI;
+      particle.userData.speed = 0.002 + Math.random() * 0.008;
+
+      scene.add(particle);
+      particles.push(particle);
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+
+      particles.forEach((particle) => {
+        particle.rotation.z += particle.userData.speed;
+        particle.position.y += particle.userData.speed * 0.2;
+
+        if (particle.position.y > 6) {
+          particle.position.y = -6;
+        }
+      });
+
+      renderer.render(scene, camera);
+    }
+
+    animate();
+
+    window.addEventListener("resize", () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    // Card game logic
+    const suits = [
+      { symbol: "♠", red: false },
+      { symbol: "♥", red: true },
+      { symbol: "♦", red: true },
+      { symbol: "♣", red: false }
+    ];
+
+    const ranks = [
+      { name: "2", value: 2 },
+      { name: "3", value: 3 },
+      { name: "4", value: 4 },
+      { name: "5", value: 5 },
+      { name: "6", value: 6 },
+      { name: "7", value: 7 },
+      { name: "8", value: 8 },
+      { name: "9", value: 9 },
+      { name: "10", value: 10 },
+      { name: "J", value: 11 },
+      { name: "Q", value: 12 },
+      { name: "K", value: 13 },
+      { name: "A", value: 14 }
+    ];
+
+    const playerCardsEl = document.getElementById("player-cards");
+    const computerCardsEl = document.getElementById("computer-cards");
+    const centerCardEl = document.getElementById("center-card");
+    const messageEl = document.getElementById("message");
+    const drawBtn = document.getElementById("draw-btn");
+
+    let deck = [];
+    let playerScore = 0;
+    let computerScore = 0;
+    let round = 0;
+    const maxRounds = 10;
+
+    function createDeck() {
+      const cards = [];
+
+      suits.forEach((suit) => {
+        ranks.forEach((rank) => {
+          cards.push({
+            name: rank.name,
+            value: rank.value,
+            suit: suit.symbol,
+            red: suit.red
+          });
+        });
+      });
+
+      // Shuffle cards
+      for (let i = cards.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [cards[i], cards[j]] = [cards[j], cards[i]];
+      }
+
+      return cards;
+    }
+
+    function makeCardElement(card, hidden = false) {
+      const el = document.createElement("div");
+      el.className = "card";
+
+      if (hidden) {
+        el.classList.add("back");
+        el.textContent = "?";
+        return el;
+      }
+
+      if (card.red) {
+        el.classList.add("red");
+      }
+
+      el.innerHTML = `
+        <div class="corner">${card.name}${card.suit}</div>
+        <div class="symbol">${card.suit}</div>
+        <div class="corner" style="align-self:flex-end; transform:rotate(180deg)">
+          ${card.name}${card.suit}
+        </div>
+      `;
+
+      return el;
+    }
+
+    function updateScores() {
+      document.getElementById("player-score").textContent = playerScore;
+      document.getElementById("computer-score").textContent = computerScore;
+      document.getElementById("round").textContent = round;
+    }
+
+    function drawCards() {
+      if (round >= maxRounds || deck.length < 2) {
+        return;
+      }
+
+      round++;
+
+      const playerCard = deck.pop();
+      const computerCard = deck.pop();
+
+      playerCardsEl.replaceChildren(
+        makeCardElement(playerCard)
+      );
+
+      computerCardsEl.replaceChildren(
+        makeCardElement(computerCard)
+      );
+
+      centerCardEl.className = "card center-card";
+
+      if (playerCard.red) {
+        centerCardEl.classList.add("red");
+      }
+
+      centerCardEl.innerHTML = `
+        <div class="corner">${playerCard.name}${playerCard.suit}</div>
+        <div class="symbol">${playerCard.suit}</div>
+        <div class="corner" style="align-self:flex-end">
+          ${playerCard.name}${playerCard.suit}
+        </div>
+      `;
+
+      if (playerCard.value > computerCard.value) {
+        playerScore++;
+        messageEl.textContent =
+          `You win this round! Your ${playerCard.name} beats ${computerCard.name}.`;
+      } else if (computerCard.value > playerCard.value) {
+        computerScore++;
+        messageEl.textContent =
+          `Computer wins this round! ${computerCard.name} beats your ${playerCard.name}.`;
+      } else {
+        messageEl.textContent =
+          `It's a tie! Both cards are ${playerCard.name}.`;
+      }
+
+      updateScores();
+
+      if (round === maxRounds) {
+        finishGame();
+      }
+    }
+
+    function finishGame() {
+      drawBtn.disabled = true;
+
+      if (playerScore > computerScore) {
+        messageEl.textContent =
+          `🎉 You win the game! Final score: ${playerScore} - ${computerScore}`;
+      } else if (computerScore > playerScore) {
+        messageEl.textContent =
+          `🤖 Computer wins! Final score: ${playerScore} - ${computerScore}`;
+      } else {
+        messageEl.textContent =
+          `🤝 The game is a draw! Final score: ${playerScore} - ${computerScore}`;
+      }
+    }
+
+    function newGame() {
+      deck = createDeck();
+      playerScore = 0;
+      computerScore = 0;
+      round = 0;
+
+      playerCardsEl.replaceChildren();
+      computerCardsEl.replaceChildren();
+
+      centerCardEl.className = "card back center-card";
+      centerCardEl.textContent = "?";
+
+      drawBtn.disabled = false;
+      messageEl.textContent = "Click Draw Cards to begin!";
+
+      updateScores();
+    }
+
+    drawBtn.addEventListener("click", drawCards);
+    document.getElementById("reset-btn").addEventListener("click", newGame);
+
+    newGame();
+  </script>
+</body>
+</html>
